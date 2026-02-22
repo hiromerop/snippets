@@ -39,10 +39,16 @@ rtc.begin(DateTime(__DATE__, __TIME__));       // start the RTC
 pinMode(RainPin, INPUT);                       // set the Rain Pin as input.
 
 //WIND SENSOR INIT
-pinMode(WindSensorPin, INPUT); 
-attachInterrupt(digitalPinToInterrupt(WindSensorPin), isr_rotation, FALLING); 
-  
-Serial.println("                           ***** FOUNTAIN OF LIGHT - WEATHER STATION - 9TH GRADE  *****"); 
+pinMode(WindSensorPin, INPUT);
+attachInterrupt(digitalPinToInterrupt(WindSensorPin), isr_rotation, FALLING);
+
+//BME SENSOR INIT
+if (!bme.begin(0x76)) {
+  Serial.println("Could not find a valid BME280 sensor, check wiring!");
+  while (1);
+}
+
+Serial.println("                           ***** FOUNTAIN OF LIGHT - WEATHER STATION - 9TH GRADE  *****");
 Serial.println("___________________________________________________________________________________________________________________"); 
 Serial.println(" Temperature C\tTemperature F\tHumdity\t\tPressure\tAltitude\tRainfall\t\tWindSpeed");
 Serial.println("___________________________________________________________________________________________________________________");  
@@ -58,12 +64,6 @@ void loop() {
   // convert to mp/h using the formula V=P(2.25/T) 
   // V = P(2.25/3) = P * 0.75 
 
-  //BME CODE
-  if (!bme.begin(0x76)) {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    while (1);
-  }
-  
   //RAIN GAUGE CODE
   // ++++++++++++++++++++++++ Count the bucket tips ++++++++++++++++++++++++++++++++
   if ((bucketPositionA==false)&&(digitalRead(RainPin)==HIGH)){
@@ -86,13 +86,17 @@ void loop() {
     first = false;                                          // execute calculations only once per hour
   }
 
+  delay(1000);
+  cli(); // Disable interrupts
+  WindSpeed = Rotations * 0.75;
+
   // PRINT VALUES
-  Serial.print(" "); 
-  Serial.print(ds.getTemperature_C()); Serial.print(" *C\t"); 
+  Serial.print(" ");
+  Serial.print(ds.getTemperature_C()); Serial.print(" *C\t");
   Serial.print(ds.getTemperature_F()); Serial.print(" *F\t");
 
   Serial.print(bme.readHumidity());
-  Serial.print(" %\t\t"); 
+  Serial.print(" %\t\t");
 
   Serial.print(bme.readPressure() / 100.0F);
   Serial.print(" hPa\t");
@@ -102,13 +106,9 @@ void loop() {
 
   Serial.print(dailyRain,8);  // the '8' ensures the required accuracy
   Serial.print(" inches\t");
- 
+
   Serial.print(WindSpeed);
-  Serial.println(" Mp/h"); 
-  
-  delay(1000); 
-  cli(); // Disable interrupts 
-  WindSpeed = Rotations * 0.75; 
+  Serial.println(" Mp/h");
   
 }
 
