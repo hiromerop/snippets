@@ -1,9 +1,17 @@
 # Copiar usuarios de SAP Business One 10 (HANA) entre bases — vía Service Layer
 
-`copy_b1_user.py` replica un usuario de una base de compañía de SAP Business One
+Utilitario que replica un usuario de una base de compañía de SAP Business One
 a una o varias bases destino **usando exclusivamente el Service Layer**
 (OData/REST, `https://servidor:50000/b1s/v1`). No usa DI API ni toca la base
-HANA directamente.
+HANA directamente. No es una aplicación web: es una herramienta de línea de
+comandos que consume el API del Service Layer.
+
+Viene en dos versiones equivalentes (misma lógica, mismos parámetros):
+
+| Archivo | Para quién |
+|---|---|
+| **`copy_b1_user.ps1`** | **Windows, autocontenido**: corre con Windows PowerShell 5.1 (incluido en Windows 10/11) o PowerShell 7+. No hay que instalar nada. |
+| `copy_b1_user.py` | Cualquier plataforma con Python 3.8+ y `requests`. Se puede empaquetar como `.exe` único con [PyInstaller](https://pyinstaller.org) (`pyinstaller --onefile copy_b1_user.py`). |
 
 ## Qué copia
 
@@ -35,13 +43,42 @@ grupo.
 
 ## Requisitos
 
-- Python 3.8+ y `requests` (`pip install requests`)
 - SAP Business One 10.0 para SAP HANA con Service Layer habilitado
 - Un usuario B1 con permisos de administración en la base origen **y** en cada
   base destino (típicamente `manager`); el mismo login se usa para todas
 - El `UserCode` copiado no debe chocar con un usuario distinto ya existente
+- Versión PowerShell: nada más (Windows 10/11 ya trae PowerShell 5.1)
+- Versión Python: Python 3.8+ y `requests` (`pip install requests`)
 
-## Uso
+## Uso en Windows (PowerShell, autocontenido)
+
+Primero un ensayo sin escribir nada:
+
+```powershell
+.\copy_b1_user.ps1 -Url https://hana01:50000/b1s/v1 -Username manager `
+    -SourceDb SBO_PRUEBAS -UserCode jperez `
+    -Targets SBO_PROD_MX, SBO_PROD_CO -DryRun -Insecure
+```
+
+Y la copia real:
+
+```powershell
+$env:B1_PASSWORD = '********'            # contraseña del manager
+$env:B1_NEW_USER_PASSWORD = 'Inicial1!'  # solo si el usuario no existe en el destino
+
+.\copy_b1_user.ps1 -Url https://hana01:50000/b1s/v1 -Username manager `
+    -SourceDb SBO_PRUEBAS -UserCode jperez `
+    -Targets SBO_PROD_MX, SBO_PROD_CO `
+    -UpdateExisting -CopyPermissionTree -Insecure
+```
+
+Los parámetros son los mismos de la tabla de opciones de abajo, en notación
+PowerShell (`-DryRun`, `-UpdateExisting`, `-ExcludeFields Branch,
+UserBranchAssignment`, etc.). Si al ejecutarlo aparece el aviso de política de
+ejecución, corre una vez:
+`powershell -ExecutionPolicy Bypass -File .\copy_b1_user.ps1 ...`
+
+## Uso con Python (multiplataforma)
 
 Primero un ensayo sin escribir nada:
 
